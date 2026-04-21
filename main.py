@@ -1,6 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, status, Depends, Header, HTTPException
 from pydantic import BaseModel
-
+from typing import Annotated
+import asyncio
+import time
 app = FastAPI()
 
 class Item(BaseModel):
@@ -8,9 +10,9 @@ class Item(BaseModel):
     price: float
 
 
-@app.get("/")
-def read_root():
-    return {"Hello": "World"}
+@app.get("/", status_code=status.HTTP_201_CREATED)
+def health():
+    return {"status": "ok"}
 
 
 @app.get("/items")
@@ -25,7 +27,7 @@ def get_item(item_id: int):
 
 @app.post("/items")
 def create_item(item: Item):
-    return {"created": item}
+    return item
 
 
 @app.put("/items/{item_id}")
@@ -46,6 +48,44 @@ def delete_item(item_id: int):
 @app.get("/search")
 def search(q: str, limit: int = 10):
     return {"query": q, "limit": limit}
+
+
+def common_params():
+    return {"limit": 10}
+
+
+@app.get("/products")
+def get_products(params: dict = Depends(common_params)):
+    return params
+
+
+@app.get('/header')
+def get_header(token: Annotated[str, Header()]):
+    return {"token": token}
+
+
+@app.get('/error')
+def error():
+    return HTTPException(status_code=404, detail="Not Found")
+
+
+@app.get("/sync")
+def sync_route():
+    time.sleep(2)
+    return {"message":"sync"}
+
+
+@app.get("/async")
+async def async_route():
+    await asyncio.sleep(2)
+    return {"message":"async"}
+
+
+@app.middleware("http")
+async def log_requests(request, call_next):
+    response = await call_next(request)
+    print(f"INSIDE MIDDLEWARE ::: STATUS CODE -> {response.status_code}")
+    return response
 
 
 def main():
