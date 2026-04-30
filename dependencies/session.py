@@ -1,7 +1,6 @@
-from sqlmodel import Session
-from services.db import engine
+from services.db import engine, async_session_maker
 
 
-def get_session():
-    with Session(engine) as session:
+async def get_session():
+    async with async_session_maker() as session:
         yield session

@@ -131,8 +131,9 @@ async def create_upload_file(file: UploadFile):
 
 # Create tables at startup
 @app.on_event("startup")
-def on_startup():
-    SQLModel.metadata.create_all(engine)
+async def on_startup():
+    async with engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all)
 
 # Include routers
 app.include_router(hero_router.router)
