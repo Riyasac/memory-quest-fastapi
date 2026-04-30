@@ -16,6 +16,15 @@ FastAPI is a modern Python web framework for building APIs with high performance
 ---
 
 ## 3. Installation (Using uv)
+
+
+### Setup with Docker 
+```bash
+ docker compose up -d
+```
+
+### Manual Installation
+
 ```bash
 pip install uv
 uv --version
