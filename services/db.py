@@ -6,7 +6,7 @@ DATABASE_URL = os.getenv(
     "DATABASE_URL", "postgresql+psycopg_async://postgres:postgres@db/maindb"
 )
 
-engine = create_async_engine(DATABASE_URL, echo=True, future=True)
+engine = create_async_engine(DATABASE_URL, echo=False, future=True)
 
 async_session_maker = sessionmaker(
     engine, class_=AsyncSession, expire_on_commit=False
