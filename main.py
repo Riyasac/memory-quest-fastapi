@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from dependencies.session import get_session
 
 
-app = FastAPI()
+app = FastAPI(root_path="/api/v1")
 
 
 @app.get("/", status_code=status.HTTP_201_CREATED)

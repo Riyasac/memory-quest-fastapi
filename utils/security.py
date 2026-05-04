@@ -61,7 +61,7 @@ def decode_access_token(token: str) -> dict | None:
 # -------------------------
 async def get_current_user(session: AsyncSession, username: str) -> User | None:
     """Fetch a user from the database by username."""
-    result = await session.execute(select(User).where(User.username == username))
+    result = await session.execute(select(User).where(User.username == username, User.is_active == True))
     return result.scalar_one_or_none()
 
 
