@@ -19,7 +19,7 @@ async def create_team(team: Team, session: AsyncSession = Depends(get_session)):
 async def read_teams(
     session: AsyncSession = Depends(get_session),
     offset: int = 0,
-    limit: int = Query(default=100, le=100),
+    limit: int = Query(default=10, le=100),
 ):
     result = await session.execute(select(Team).offset(offset).limit(limit))
     teams = result.scalars().all()

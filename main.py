@@ -6,13 +6,28 @@ from fastapi.security import OAuth2PasswordRequestForm
 from utils.security import authenticate_user, create_access_token
 from sqlalchemy.ext.asyncio import AsyncSession
 from dependencies.session import get_session
+from fastapi.middleware.cors import CORSMiddleware
 
 
 app = FastAPI(root_path="/api/v1")
 
 
+origins = [
+    "http://localhost",
+    "http://localhost:8080",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
 @app.get("/", status_code=status.HTTP_201_CREATED)
-def health():
+async def health():
     return {"status": "ok"}
 
 

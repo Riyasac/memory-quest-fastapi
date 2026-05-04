@@ -31,7 +31,7 @@ async def create_hero(hero: HeroCreate, session: AsyncSession = Depends(get_sess
 async def read_heroes(
     session: AsyncSession = Depends(get_session),
     offset: int = 0,
-    limit: int = Query(default=100, le=100),
+    limit: int = Query(default=10, le=100),
 ):
     result = await session.execute(select(Hero).offset(offset).limit(limit))
     heroes = result.scalars().all()

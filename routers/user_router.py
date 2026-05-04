@@ -68,7 +68,7 @@ async def read_users(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
     offset: int = 0,
-    limit: int = Query(default=100, le=100),
+    limit: int = Query(default=10, le=100),
 ):
     data = await paginate_query(
         session=session,

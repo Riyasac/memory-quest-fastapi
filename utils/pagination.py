@@ -7,7 +7,7 @@ async def paginate_query(
     session: AsyncSession,
     model: Any,
     offset: int = 0,
-    limit: int = 100,
+    limit: int = 10,
     order_by: Any = None,
     base_url: str = "/",
 ) -> Dict:
