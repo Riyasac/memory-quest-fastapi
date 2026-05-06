@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Profile</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(rgba(0, 0, 0, 0.52), rgba(0, 0, 0, 0.52)), url("{{url_for('static', path='/bg.gif')}}");
+      background-size: cover;
+      background-position: top;
+      color: white;
+      margin: 0;
+      padding: 20px;
+      box-sizing: border-box;
+      min-height: 100vh;
+    }
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      max-width: 980px;
+      margin: 0 auto 18px auto;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand img {
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1px solid rgba(255,255,255,0.35);
+    }
+    .brand h1 {
+      margin: 0;
+      font-size: 1.5rem;
+    }
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    button {
+      background: linear-gradient(135deg,#00ff7f,#4b0082);
+      color: white;
+      font-weight: bold;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 14px;
+      cursor: pointer;
+    }
+    .card {
+      max-width: 980px;
+      margin: 0 auto;
+      background: rgba(0,0,0,0.55);
+      border-radius: 14px;
+      padding: 18px;
+    }
+    .meta {
+      color: #d5d5d5;
+      margin-bottom: 12px;
+      font-size: 0.93rem;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 12px;
+    }
+    .field {
+      display: flex;
+      flex-direction: column;
+      text-align: left;
+      gap: 6px;
+    }
+    .field label {
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+    input, textarea {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+    }
+    textarea {
+      min-height: 72px;
+      resize: vertical;
+    }
+    .status {
+      margin-top: 12px;
+      min-height: 20px;
+      color: #e4ffd3;
+    }
+    .row {
+      margin-top: 14px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+  </style>
+  <link rel="icon" href="{{url_for('static', path='/logo.png')}}" type="image/x-icon">
+</head>
+<body>
+  <script src="{{url_for('static', path='/script.js')}}"></script>
+  <div class="top-bar">
+    <div class="brand">
+      <img src="{{url_for('static', path='/logo.png')}}" alt="Memory Quest logo">
+      <h1>Profile</h1>
+    </div>
+    <div class="actions">
+      <button onclick="goToLevels()">🏠 Levels</button>
+      <button onclick="goToAbout()">About</button>
+      <button onclick="logOut()">Logout</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="meta" id="metaInfo">Loading profile...</div>
+    <div class="grid">
+      <div class="field">
+        <label>Username</label>
+        <input id="username" disabled>
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input id="email" type="email">
+      </div>
+      <div class="field">
+        <label>Full Name</label>
+        <input id="full_name">
+      </div>
+      <div class="field">
+        <label>Phone Number</label>
+        <input id="phone_number" placeholder="Digits only">
+      </div>
+      <div class="field">
+        <label>Date of Birth</label>
+        <input id="dob" type="date">
+      </div>
+      <!-- <div class="field">
+        <label>Profile Image URL</label>
+        <input id="profile_image" placeholder="https://...">
+      </div> -->
+      <div class="field" style="grid-column: 1 / -1;">
+        <label>Address</label>
+        <textarea id="address"></textarea>
+      </div>
+      <div class="field" style="grid-column: 1 / -1;">
+        <label>New Password (Optional)</label>
+        <input id="password" type="password" placeholder="At least 8 chars, 1 uppercase, 1 digit">
+      </div>
+    </div>
+    <div class="row">
+      <button onclick="saveProfile()">Save Changes</button>
+      <button onclick="loadProfile()">Reload</button>
+    </div>
+    <div class="status" id="statusText"></div>
+  </div>
+
+  <script>
+    init();
+    loadProfile();
+
+    function asDateInputValue(value) {
+      if (!value) return "";
+      return String(value).slice(0, 10);
+    }
+
+    async function loadProfile() {
+      const statusEl = document.getElementById("statusText");
+      const metaEl = document.getElementById("metaInfo");
+      statusEl.textContent = "";
+      try {
+        const res = await apiFetch("/users/me");
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Could not load profile");
+
+        document.getElementById("username").value = data.username || "";
+        document.getElementById("email").value = data.email || "";
+        document.getElementById("full_name").value = data.full_name || "";
+        document.getElementById("phone_number").value = data.phone_number || "";
+        document.getElementById("dob").value = asDateInputValue(data.dob);
+        // document.getElementById("profile_image").value = data.profile_image || "";
+        document.getElementById("address").value = data.address || "";
+        document.getElementById("password").value = "";
+
+        const created = data.created_at ? new Date(data.created_at).toLocaleDateString() : "-";
+        const updated = data.updated_at ? new Date(data.updated_at).toLocaleString() : "-";
+        metaEl.textContent = `Member since: ${created} | Last updated: ${updated}`;
+      } catch (error) {
+        metaEl.textContent = "Could not load profile";
+        statusEl.textContent = error.message || "Unable to load profile.";
+      }
+    }
+
+    async function saveProfile() {
+      const emailValue = document.getElementById("email").value.trim();
+      if (!emailValue) {
+        document.getElementById("statusText").textContent = "Email is required.";
+        return;
+      }
+      const payload = {
+        email: emailValue,
+        full_name: document.getElementById("full_name").value.trim() || null,
+        phone_number: document.getElementById("phone_number").value.trim() || null,
+        dob: document.getElementById("dob").value || null,
+        // profile_image: document.getElementById("profile_image").value.trim() || null,
+        address: document.getElementById("address").value.trim() || null,
+      };
+      const password = document.getElementById("password").value.trim();
+      if (password) {
+        payload.password = password;
+      }
+
+      const statusEl = document.getElementById("statusText");
+      statusEl.textContent = "Saving...";
+      try {
+        const res = await apiFetch("/users/me", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Could not save profile");
+        statusEl.textContent = "Profile updated successfully.";
+        await loadProfile();
+      } catch (error) {
+        statusEl.textContent = error.message || "Unable to save profile.";
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Memory Quest: Card Flip Adventure</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(rgba(0, 0, 0, 0.52), rgba(0, 0, 0, 0.52)), url("{{url_for('static', path='/bg.gif')}}");
+      background-size: cover;
+      background-position: top;
+      color: white;
+      margin: 0;
+      padding: 20px;
+      box-sizing: border-box;
+      min-height: 100vh;
+      text-align: center;
+    }
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      max-width: 1120px;
+      margin: 0 auto 16px auto;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand img {
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1px solid rgba(255,255,255,0.35);
+    }
+    .brand h1 {
+      margin: 0;
+      font-size: 1.5rem;
+      text-align: left;
+    }
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    button {
+      background: linear-gradient(135deg,#00ff7f,#4b0082);
+      color: white;
+      font-weight: bold;
+      border: none;
+      border-radius: 12px;
+      padding: 10px 14px;
+      cursor: pointer;
+    }
+    button.secondary {
+      background: linear-gradient(135deg,#ff8f00,#8e24aa);
+    }
+    .status-box {
+      max-width: 1120px;
+      margin: 0 auto 10px auto;
+      background: rgba(0,0,0,0.45);
+      border-radius: 10px;
+      padding: 10px 14px;
+      text-align: left;
+    }
+    .grid {
+      display: grid;
+      justify-content: center;
+      margin: 16px auto;
+      gap: 10px;
+      max-width: 1120px;
+    }
+    .card {
+      background: #222;
+      width: 80px;
+      height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8em;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.25s;
+      user-select: none;
+    }
+    .card.revealed {
+      background: #2196f3;
+      color: white;
+    }
+    .card.matched {
+      background: #00ff7f;
+      color: white;
+      cursor: default;
+    }
+    #winPopup {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.72);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+      box-sizing: border-box;
+    }
+    #winPopup .popup-content {
+      background: white;
+      color: #4b0082;
+      padding: 26px;
+      border-radius: 12px;
+      text-align: center;
+      max-width: 420px;
+      width: 100%;
+    }
+  </style>
+  <link rel="icon" href="{{url_for('static', path='/logo.png')}}" type="image/x-icon">
+</head>
+<body>
+  <script src="{{url_for('static', path='/script.js')}}"></script>
+
+  <div class="top-bar">
+    <div class="brand">
+      <img src="{{url_for('static', path='/logo.png')}}" alt="Memory Quest logo">
+      <h1>Memory Quest: Card Flip Adventure</h1>
+    </div>
+    <div class="actions">
+      <button onclick="goToLevels()">🏠 Levels</button>
+      <button onclick="goToProfile()">Profile</button>
+      <button onclick="goToAbout()">About</button>
+      <button id="shuffleBtn" class="secondary" onclick="shuffleHardLevel()" style="display:none;">🔀 Shuffle (Hard)</button>
+      <button onclick="logOut()">Logout</button>
+    </div>
+  </div>
+
+  <div class="status-box" id="info"></div>
+  <div class="grid" id="grid"></div>
+
+  <div id="winPopup">
+    <div class="popup-content">
+      <h2>🎉 Level Complete!</h2>
+      <p id="winStats"></p>
+      <p id="highscore"></p>
+      <button onclick="playNextLevel()">Next Level ➡️</button>
+      <button onclick="goToLevels()" style="margin-left:8px;">Back to Levels</button>
+    </div>
+  </div>
+
+  <script>
+    let timerElapsedMs = 0;
+    let timerStarted = false;
+    let timerRunning = false;
+    let timerResumeAt = null;
+
+    function timerStorageKey() {
+      if (!playerName || !currentGameId) return null;
+      return `game_timer_${playerName}_${currentGameId}`;
+    }
+
+    function persistTimerState() {
+      const key = timerStorageKey();
+      if (!key) return;
+      sessionStorage.setItem(
+        key,
+        JSON.stringify({
+          elapsedMs: timerElapsedMs,
+          started: timerStarted,
+        })
+      );
+    }
+
+    function restoreTimerState() {
+      timerElapsedMs = 0;
+      timerStarted = false;
+      timerRunning = false;
+      timerResumeAt = null;
+
+      const key = timerStorageKey();
+      if (!key) return;
+      const raw = sessionStorage.getItem(key);
+      if (!raw) return;
+
+      try {
+        const parsed = JSON.parse(raw);
+        timerElapsedMs = Number(parsed.elapsedMs) || 0;
+        timerStarted = Boolean(parsed.started);
+      } catch (error) {
+        timerElapsedMs = 0;
+        timerStarted = false;
+      }
+    }
+
+    function getElapsedMs() {
+      if (!timerRunning || !timerResumeAt) return timerElapsedMs;
+      return timerElapsedMs + (Date.now() - timerResumeAt);
+    }
+
+    function startTimerOnFirstClick() {
+      if (timerRunning) return;
+      timerStarted = true;
+      timerRunning = true;
+      timerResumeAt = Date.now();
+      persistTimerState();
+    }
+
+    function pauseGameTimer() {
+      if (!timerRunning) return;
+      timerElapsedMs = getElapsedMs();
+      timerRunning = false;
+      timerResumeAt = null;
+      persistTimerState();
+    }
+
+    window.pauseGameTimer = pauseGameTimer;
+
+    init();
+    const params = new URLSearchParams(window.location.search);
+    const requestedLevel = Number.parseInt(
+      params.get("level") || sessionStorage.getItem("selectedLevel") || "1",
+      10
+    );
+    currentLevel = Number.isNaN(requestedLevel) ? 1 : Math.min(Math.max(requestedLevel, 1), MAX_LEVEL);
+    sessionStorage.setItem("selectedLevel", String(currentLevel));
+    startGame(currentLevel);
+
+    function toggleShuffleButton() {
+      const shuffleBtn = document.getElementById("shuffleBtn");
+      shuffleBtn.style.display = currentLevel >= 21 ? "inline-block" : "none";
+    }
+
+    async function startGame(level) {
+      try {
+        const response = await fetch(`/game/start?player_name=${encodeURIComponent(playerName)}&level=${level}`, { method: "POST" });
+        const data = await response.json();
+
+        if (!response.ok) {
+          alert(data.detail || "Could not start level.");
+          goToLevels();
+          return;
+        }
+
+        currentLevel = data.level;
+        currentGameId = data.game_id;
+        board = data.board || [];
+        revealed = data.revealed || [];
+        matched = data.matched || [];
+        moves = data.moves || 0;
+        restoreTimerState();
+        toggleShuffleButton();
+
+        document.getElementById("winPopup").style.display = "none";
+        if (infoTimer) {
+          clearInterval(infoTimer);
+        }
+        infoTimer = setInterval(updateInfo, 1000);
+        renderBoard();
+        updateInfo();
+      } catch (error) {
+        alert("Could not connect to game server.");
+      }
+    }
+
+    function getBoardSize() {
+      const length = board.length || 16;
+      const size = Math.sqrt(length);
+      return Number.isInteger(size) ? size : 4;
+    }
+
+    function updateInfo() {
+      const seconds = Math.floor(getElapsedMs() / 1000);
+      const timerHint = timerStarted ? `${seconds}s` : "0s (click a card to start)";
+      document.getElementById("info").textContent =
+        `Player: ${playerName} | Level: ${currentLevel} | Moves: ${moves} | Time: ${timerHint}`;
+    }
+
+    function renderBoard() {
+      const grid = document.getElementById("grid");
+      grid.innerHTML = "";
+      const size = getBoardSize();
+      grid.style.gridTemplateColumns = `repeat(${size}, 80px)`;
+
+      board.forEach((card, index) => {
+        const div = document.createElement("div");
+        div.className = "card";
+
+        if (matched.includes(index)) {
+          div.classList.add("matched");
+          div.textContent = card;
+        } else if (revealed.includes(index)) {
+          div.classList.add("revealed");
+          div.textContent = card;
+        } else {
+          div.textContent = "?";
+        }
+
+        div.onclick = () => flipCard(index);
+        grid.appendChild(div);
+      });
+    }
+
+    async function flipCard(index) {
+      if (revealed.includes(index) || matched.includes(index) || revealed.length >= 2) return;
+
+      const res = await fetch(`/game/flip?game_id=${currentGameId}&index=${index}`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.detail || "Could not flip this card.");
+        return;
+      }
+
+      startTimerOnFirstClick();
+      board[index] = data.card;
+      revealed.push(index);
+      renderBoard();
+
+      if (revealed.length === 2) {
+        await evaluatePair(revealed[0], revealed[1]);
+      } else {
+        updateInfo();
+      }
+    }
+
+    async function evaluatePair(first, second) {
+      const res = await fetch(`/game/check?game_id=${currentGameId}&first=${first}&second=${second}`, { method: "POST" });
+      const result = await res.json();
+      if (!res.ok) {
+        alert(result.detail || "Could not check cards.");
+        return;
+      }
+
+      moves = result.moves ?? moves;
+      matched = result.matched || [];
+      if (result.match) {
+        revealed = result.revealed || [];
+        board = result.board || board;
+        renderBoard();
+        if (result.completed) {
+          handleLevelCompleted();
+        }
+      } else {
+        setTimeout(() => {
+          revealed = result.revealed || [];
+          board = result.board || board;
+          renderBoard();
+        }, 700);
+      }
+      updateInfo();
+    }
+
+    async function shuffleHardLevel() {
+      if (currentLevel < 21) {
+        alert("Shuffle is available from level 21+.");
+        return;
+      }
+      try {
+        const res = await fetch(`/game/shuffle?game_id=${currentGameId}`, { method: "POST" });
+        const data = await res.json();
+        if (!res.ok) {
+          alert(data.detail || "Could not shuffle cards.");
+          return;
+        }
+        board = data.board || board;
+        matched = data.matched || matched;
+        revealed = data.revealed || [];
+        renderBoard();
+        updateInfo();
+      } catch (error) {
+        alert("Shuffle failed. Please try again.");
+      }
+    }
+
+    function handleLevelCompleted() {
+      pauseGameTimer();
+      const timeTaken = Math.floor(getElapsedMs() / 1000);
+      document.getElementById("winStats").textContent = `Moves: ${moves}, Time: ${timeTaken}s`;
+
+      const key = `highscore_level_${currentLevel}`;
+      const best = JSON.parse(localStorage.getItem(key)) || { moves: Infinity, time: Infinity };
+      if (moves < best.moves || (moves === best.moves && timeTaken < best.time)) {
+        localStorage.setItem(key, JSON.stringify({ moves, time: timeTaken }));
+      }
+      showHighscore();
+      document.getElementById("winPopup").style.display = "flex";
+    }
+
+    function showHighscore() {
+      const key = `highscore_level_${currentLevel}`;
+      const best = JSON.parse(localStorage.getItem(key));
+      if (best) {
+        document.getElementById("highscore").textContent =
+          `🏆 Best for Level ${currentLevel}: Moves ${best.moves}, Time ${best.time}s`;
+      }
+    }
+
+    function playNextLevel() {
+      pauseGameTimer();
+      const nextLevel = Math.min(currentLevel + 1, MAX_LEVEL);
+      sessionStorage.setItem("selectedLevel", String(nextLevel));
+      window.location.href = `/game/?level=${nextLevel}`;
+    }
+
+    window.addEventListener("beforeunload", pauseGameTimer);
+  </script>
+</body>
+</html>

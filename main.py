@@ -1,12 +1,18 @@
-from fastapi import FastAPI, status, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Request
 from sqlmodel import SQLModel
 from services.db import engine
-from routers import user_router, hero_router, team_router
+from routers import user_router, game_router
 from fastapi.security import OAuth2PasswordRequestForm
 from utils.security import authenticate_user, create_access_token
 from sqlalchemy.ext.asyncio import AsyncSession
 from dependencies.session import get_session
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from dependencies.user import get_current_user
+
+templates = Jinja2Templates(directory="templates")
 
 
 app = FastAPI(root_path="/api/v1")
@@ -25,10 +31,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
-@app.get("/", status_code=status.HTTP_201_CREATED)
-async def health():
-    return {"status": "ok"}
+
+@app.get("/login", response_class=HTMLResponse)
+async def login(request: Request):
+    return templates.TemplateResponse(name="login.html", request=request, context={"request": request})
+
+
+@app.get("/signup", response_class=HTMLResponse)
+async def signup(request: Request):
+    return templates.TemplateResponse(name="login.html", request=request, context={"request": request})
 
 
 # Create tables at startup
@@ -39,7 +52,7 @@ async def on_startup():
 
 
 @app.post("/token")
-async def login(
+async def token(
     form_data: OAuth2PasswordRequestForm = Depends(),
     session: AsyncSession = Depends(get_session),
 ):
@@ -53,8 +66,7 @@ async def login(
 
 # Include routers
 app.include_router(user_router.router)
-app.include_router(hero_router.router)
-app.include_router(team_router.router)
+app.include_router(game_router.router)
 
 
 def main():

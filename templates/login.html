@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Memory Quest: Card Flip Adventure – Sign In / Sign Up</title>
+    <style>
+        
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: url("{{url_for('static', path='/bg.avif')}}");
+            background-size: cover;
+            background-position: bottom;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            position: relative;
+        }
+        
+        body::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background-color: rgba(41, 41, 41, 0.5);
+            z-index: 0;
+        }
+        
+        body > * {
+            position: relative;
+            z-index: 1;
+        }
+        .auth-container {
+            background: rgba(0,0,0,0.6);
+            padding: 40px;
+            border-radius: 16px;
+            text-align: center;
+            width: 40%;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        .auth-container img {
+            width: 100%;
+            margin-bottom: 0px;
+        }
+        input {
+            width: 90%;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border: none;
+            font-size: 1em;
+        }
+        button {
+            background: linear-gradient(135deg,#00ff7f,#4b0082);
+            color: white;
+            font-weight: bold;
+            border: none;
+            border-radius: 10px;
+            padding: 10px 20px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        button:hover { transform: scale(1.05); }
+        .toggle {
+            margin-top: 15px;
+            font-size: 0.9em;
+            cursor: pointer;
+            color: #00ff7f;
+        }
+    </style>
+    <link rel="icon" href="{{url_for('static', path='/logo.png')}}" type="image/x-icon">
+</head>
+<body>
+    <div class="auth-container">
+        <img src="{{url_for('static', path='/logo.png')}}" alt="Memory Quest: Card Flip Adventure">
+        <h2 id="formTitle">Sign In</h2>
+        <input type="text" id="username" placeholder="Username">
+        <input type="password" id="password" placeholder="Password">
+        <input type="email" id="email" placeholder="Email (for Sign Up)" style="display:none;">
+        <button onclick="handleAuth()">Continue</button>
+        <div class="toggle" onclick="toggleForm()">Don't have an account? Sign Up</div>
+    </div>
+    <!-- link script -->
+    <script src="{{url_for('static', path='/script.js')}}"></script>
+    
+    <script>
+        let isSignUp = false;
+        
+        function toggleForm() {
+            isSignUp = !isSignUp;
+            document.getElementById('formTitle').textContent = isSignUp ? 'Sign Up' : 'Sign In';
+            document.querySelector('.toggle').textContent = isSignUp
+            ? 'Already have an account? Sign In'
+            : "Don't have an account? Sign Up";
+            document.getElementById('email').style.display = isSignUp ? 'inline-block' : 'none';
+        }
+        
+        isAuthenticated();
+        async function isAuthenticated(){
+            if (sessionStorage.getItem('token')){
+                window.location.href = "/game/levels";
+            }
+        }
+        
+        async function handleAuth() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const email = document.getElementById('email').value.trim();
+            if (!username || !password) {
+                alert('Please fill in all fields');
+                return;
+            }
+            if (isSignUp) {
+                if (!email) {
+                    alert('Please fill in all fields');
+                    return;
+                }
+                const res = await fetch('/users/', {
+                    method: "POST",
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password, email }),
+                });
+                if (!res.ok) {
+                    const data = await res.json();
+                    alert(data.detail || 'Sign Up failed');
+                    return;
+                }
+                window.location.href = "/login";
+                
+            }
+            const res = await fetch('/token', {
+                method:"POST",
+                body:new URLSearchParams({
+                    username,
+                    password,
+                    grant_type:"password",
+                }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                sessionStorage.setItem("token", data.access_token);
+                
+                // Save username until browser closes
+                sessionStorage.setItem('playerName', username);
+                
+                // Redirect to level-select page
+                window.location.href = "/game/levels";
+            } else {
+                alert(data.detail || "Login failed");
+            }
+        }
+    </script>
+</body>
+</html>

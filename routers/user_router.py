@@ -1,9 +1,11 @@
+from datetime import datetime
+
 from fastapi import APIRouter, HTTPException, Depends, status, Query
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from models.user import User
 from dependencies.session import get_session
-from schemas.user_schema import UserCreate
+from schemas.user_schema import UserCreate, UserProfileUpdate, UserRead
 from utils.security import hash_password
 from utils.pagination import paginate_query
 from dependencies.user import get_current_user
@@ -12,8 +14,82 @@ from dependencies.user import get_current_user
 router = APIRouter(prefix="/users", tags=["users"])
 
 
-@router.get("/me", response_model=User)
+@router.get("/me", response_model=UserRead)
 async def read_users_me(current_user: User = Depends(get_current_user)):
+    return current_user
+
+
+@router.patch("/me", response_model=UserRead)
+async def update_users_me(
+    profile_update: UserProfileUpdate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    update_data = profile_update.model_dump(exclude_unset=True)
+    if not update_data:
+        return current_user
+
+    if "username" in update_data and not update_data["username"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username cannot be empty",
+        )
+    if "email" in update_data and not update_data["email"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email cannot be empty",
+        )
+
+    if (
+        "username" in update_data
+        and update_data["username"]
+        and update_data["username"] != current_user.username
+    ):
+        existing_user = await session.execute(
+            select(User).where(User.username == update_data["username"])
+        )
+        if existing_user.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username already exists",
+            )
+
+    if (
+        "email" in update_data
+        and update_data["email"]
+        and update_data["email"] != current_user.email
+    ):
+        existing_email = await session.execute(
+            select(User).where(User.email == update_data["email"])
+        )
+        if existing_email.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already exists",
+            )
+
+    if (
+        "phone_number" in update_data
+        and update_data["phone_number"]
+        and update_data["phone_number"] != current_user.phone_number
+    ):
+        existing_phone = await session.execute(
+            select(User).where(User.phone_number == update_data["phone_number"])
+        )
+        if existing_phone.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Phone number already exists",
+            )
+
+    if "password" in update_data and update_data["password"]:
+        update_data["password"] = hash_password(update_data["password"])
+
+    update_data["updated_at"] = datetime.now()
+    current_user.sqlmodel_update(update_data)
+    session.add(current_user)
+    await session.commit()
+    await session.refresh(current_user)
     return current_user
 
 
@@ -21,8 +97,7 @@ async def read_users_me(current_user: User = Depends(get_current_user)):
 @router.post("/", response_model=UserCreate)
 async def create_user(
     user_create: UserCreate, 
-    session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user)
+    session: AsyncSession = Depends(get_session)
 ):
     # Check if username already exists
     statement = select(User).where(User.username == user_create.username)

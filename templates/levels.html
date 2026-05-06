@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Choose Level</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(rgba(0, 0, 0, 0.52), rgba(0, 0, 0, 0.52)), url("{{url_for('static', path='/bg.gif')}}");
+      /* background-size: cover; */
+      background-position: top;
+      color: white;
+      margin: 0;
+      padding: 20px;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      max-width: 1120px;
+      margin: 0 auto 18px auto;
+      flex-wrap: wrap;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand img {
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1px solid rgba(255, 255, 255, 0.35);
+    }
+    .brand h1 {
+      margin: 0;
+      font-size: 1.55rem;
+    }
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    button {
+      background: linear-gradient(135deg,#00ff7f,#4b0082);
+      color: white;
+      font-weight: bold;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 14px;
+      cursor: pointer;
+    }
+    .hint {
+      max-width: 1120px;
+      margin: 0 auto 18px auto;
+      background: rgba(0,0,0,0.45);
+      border-radius: 10px;
+      padding: 10px 14px;
+    }
+    .levels-grid {
+      max-width: 1120px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 14px;
+    }
+    .level-card {
+      background: rgba(20, 20, 20, 0.78);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 12px;
+      padding: 14px;
+      text-align: center;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .level-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+    }
+    .level-card.locked {
+      opacity: 0.72;
+      cursor: not-allowed;
+      background: rgba(40, 40, 40, 0.8);
+    }
+    .level-card.completed {
+      border-color: #00ff7f;
+    }
+    .level-badge {
+      font-size: 2em;
+      margin-bottom: 6px;
+    }
+    .level-title {
+      font-size: 1.1em;
+      font-weight: bold;
+    }
+    .level-status {
+      margin-top: 8px;
+      font-size: 0.9em;
+      color: #d9d9d9;
+    }
+    .footer {
+      max-width: 1120px;
+      margin: 16px auto 0 auto;
+      color: #d6d6d6;
+      font-size: 0.9rem;
+      text-align: center;
+    }
+  </style>
+  <link rel="icon" href="{{url_for('static', path='/logo.png')}}" type="image/x-icon">
+</head>
+<body>
+  <script src="{{url_for('static', path='/script.js')}}"></script>
+  <div class="top-bar">
+    <div class="brand">
+      <img src="{{url_for('static', path='/logo.png')}}" alt="Memory Quest logo">
+      <h1>Choose Your Level</h1>
+    </div>
+    <div class="actions">
+      <button onclick="goToProfile()">Profile</button>
+      <button onclick="goToAbout()">About</button>
+      <button onclick="gotToLeaderboard()">Ranking</button>
+      <button onclick="logOut()">Logout</button>
+    </div>
+  </div>
+
+  <div class="hint" id="hintText">Loading levels...</div>
+  <div class="levels-grid" id="levelsGrid"></div>
+  <div class="footer">Tip: Hard levels (21+) unlock shuffle in gameplay.</div>
+
+  <script>
+    const gridEl = document.getElementById("levelsGrid");
+    const hintTextEl = document.getElementById("hintText");
+
+    init();
+    loadLevels();
+
+    async function loadLevels() {
+      const playerName = sessionStorage.getItem("playerName");
+      if (!playerName) return;
+
+      try {
+        const res = await apiFetch(`/game/levels/status?player_name=${encodeURIComponent(playerName)}`);
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.detail || "Could not load levels");
+        }
+
+        hintTextEl.textContent = `Player: ${playerName} | Unlocked up to Level ${data.unlocked_level}`;
+        renderLevels(data.levels);
+      } catch (error) {
+        hintTextEl.textContent = "Could not load levels. Please try again.";
+      }
+    }
+
+    function renderLevels(levels) {
+      gridEl.innerHTML = "";
+      for (const levelInfo of levels) {
+        const card = document.createElement("div");
+        const locked = levelInfo.locked;
+        card.className = `level-card ${locked ? "locked" : ""} ${levelInfo.completed ? "completed" : ""}`;
+
+        const icon = locked ? "🔒" : levelInfo.completed ? "✅" : levelInfo.in_progress ? "🟡" : "🔓";
+        let statusText = "Unlocked";
+        if (locked) statusText = "Locked";
+        if (levelInfo.in_progress && !locked) statusText = "In Progress";
+        if (levelInfo.completed) statusText = "Completed";
+
+        card.innerHTML = `
+          <div class="level-badge">${icon}</div>
+          <div class="level-title">Level ${levelInfo.level}</div>
+          <div class="level-status">${statusText}</div>
+        `;
+
+        if (!locked) {
+          card.onclick = () => openLevel(levelInfo.level);
+        }
+
+        gridEl.appendChild(card);
+      }
+    }
+
+    function openLevel(level) {
+      sessionStorage.setItem("selectedLevel", String(level));
+      window.location.href = `/game/?level=${level}`;
+    }
+  </script>
+</body>
+</html>
