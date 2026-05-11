@@ -21,6 +21,45 @@ async function apiFetch(url, options = {}) {
     return fetch(url, { ...options, headers });
 }
 
+function extractErrorMessage(payload, fallback = "Something went wrong") {
+    if (!payload) {
+        return fallback;
+    }
+
+    if (typeof payload === "string") {
+        return payload;
+    }
+
+    if (typeof payload.detail === "string") {
+        return payload.detail;
+    }
+
+    if (Array.isArray(payload.detail) && payload.detail.length > 0) {
+        const firstError = payload.detail[0];
+        if (typeof firstError === "string") {
+            return firstError;
+        }
+        if (firstError && typeof firstError.msg === "string") {
+            const location = Array.isArray(firstError.loc)
+                ? firstError.loc.filter((part) => part !== "body").pop()
+                : null;
+
+            if (!location) {
+                return firstError.msg;
+            }
+
+            const fieldName = String(location)
+                .replace(/_/g, " ")
+                .replace(/\b\w/g, (char) => char.toUpperCase());
+
+            const message = firstError.msg.charAt(0).toLowerCase() + firstError.msg.slice(1);
+            return `${fieldName} ${message}`;
+        }
+    }
+
+    return fallback;
+}
+
 async function init() {
     if (!sessionStorage.getItem("token")) {
         window.location.href = "/login";

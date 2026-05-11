@@ -180,7 +180,7 @@
       try {
         const res = await apiFetch("/users/me");
         const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || "Could not load profile");
+        if (!res.ok) throw new Error(extractErrorMessage(data, "Could not load profile"));
 
         document.getElementById("username").value = data.username || "";
         document.getElementById("email").value = data.email || "";
@@ -228,7 +228,7 @@
           body: JSON.stringify(payload),
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || "Could not save profile");
+        if (!res.ok) throw new Error(extractErrorMessage(data, "Could not save profile"));
         statusEl.textContent = "Profile updated successfully.";
         await loadProfile();
       } catch (error) {
