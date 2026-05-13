@@ -1,246 +1,142 @@
-# FastAPI Basics
+# Memory Quest: Card Flip Adventure
 
-## 1. Introduction
-FastAPI is a modern Python web framework for building APIs with high performance using type hints.
+Memory Quest is a FastAPI-powered memory game with JWT authentication, persistent level progression, player profiles, and a leaderboard. The app uses Jinja2 templates for the UI, vanilla JavaScript for gameplay, SQLModel for persistence, and PostgreSQL for storage.
 
----
+## Project Details
 
-## 2. Key Features
-- Automatic Swagger UI (`/docs`)
-- ReDoc (`/redoc`)
-- Async support (high concurrency)
-- Pydantic validation
-- Dependency Injection system
-- Lightweight and fast
+- **Game name:** Memory Quest: Card Flip Adventure
+- **Version:** v1.3.0
+- **Launch date:** May 6, 2026
+- **Developer:** Riyas AC
+- **Built with:** FastAPI, SQLModel, PostgreSQL, Vanilla JS, and Jinja2
 
----
+## Features
 
-## 3. Installation (Using uv)
+- Sign up and sign in with JWT bearer authentication.
+- Hash passwords with Argon2 before storing them.
+- Play a level-based memory match game with persistent board state.
+- Track moves, timer, matched cards, and in-progress sessions.
+- Unlock levels sequentially from 1 to 100.
+- Show locked, completed, and in-progress states on the level screen.
+- Shuffle unmatched cards on hard levels only (`21+`).
+- Save per-level highscores in the browser.
+- Display a leaderboard ranked by best completed level, moves, and time.
+- Edit user profile details from the app.
+- Manage `heroes` and `teams` through CRUD endpoints.
+- Use FastAPI's built-in Swagger UI and ReDoc docs.
 
+## Gameplay Details
 
-### Setup with Docker 
+- Flip cards two at a time to find matching pairs.
+- The timer starts on the first card flip.
+- A game is stored in the database, so unfinished levels can be resumed.
+- The backend marks a level complete once every card is matched.
+- The leaderboard only considers completed games.
+- The level picker and gameplay UI are rendered server-side and enhanced with browser-side JavaScript.
+
+### Level Bands
+
+The deck composition changes with difficulty:
+
+- **Levels 1–10:** 8 pairs using letters or emojis
+- **Levels 11–20:** 18 pairs using numbers or symbols
+- **Levels 21–30:** 32 pairs using a mixed symbol set
+- **Levels 31–40:** 50 pairs using a larger mixed set
+- **Levels 41–50:** 72 pairs using the widest mixed set
+- **Levels 51–100:** current fallback deck of 8 pairs
+
+## App Pages
+
+- `/login` — sign in / sign up screen
+- `/game/levels` — level selection screen
+- `/game/` — gameplay screen
+- `/game/profile` — profile editor
+- `/game/about` — project details page
+- `/game/ranks` — leaderboard
+
+## API Overview
+
+### Auth and Users
+
+- `POST /token` — obtain a JWT access token
+- `POST /users/` — create a user account
+- `GET /users/me` — fetch the current profile
+- `PATCH /users/me` — update the current profile
+- `GET /users/` — paginated user listing
+- `GET /users/{user_id}` — fetch a user by ID
+- `PUT /users/{user_id}` — update a user by ID
+- `DELETE /users/{user_id}` — delete a user by ID
+
+### Game
+
+- `POST /game/start` — start or resume a level
+- `POST /game/flip` — reveal a card
+- `POST /game/check` — compare two revealed cards
+- `POST /game/shuffle` — reshuffle unmatched cards on hard levels
+- `GET /game/state` — fetch the current saved game state
+- `GET /game/levels/status` — get locked / completed / in-progress levels
+- `GET /game/leaderboard` — get ranked player results
+
+### Demo Resources
+
+- `POST /heroes/`, `GET /heroes/`, `PUT /heroes/{hero_id}`, `DELETE /heroes/{hero_id}`
+- `POST /teams/`, `GET /teams/`, `PUT /teams/{team_id}`, `DELETE /teams/{team_id}`
+
+## Tech Stack
+
+- **Backend:** FastAPI, SQLModel, async SQLAlchemy, psycopg
+- **Auth:** OAuth2 password flow, JWT, Argon2
+- **Frontend:** Jinja2, HTML, CSS, Vanilla JavaScript
+- **Database:** PostgreSQL
+- **Tooling:** Docker, Docker Compose, uv
+
+## Running Locally
+
+### With Docker
+
 ```bash
- docker compose up -d
+docker compose up -d
 ```
 
-### Manual Installation
+This starts PostgreSQL, the FastAPI backend, and Adminer.
+
+### With `uv`
 
 ```bash
-pip install uv
-uv --version
-uv init fastapi-project
-cd fastapi-project
-uv add fastapi uvicorn
+uv sync
+uv run uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
----
+Make sure PostgreSQL is available and set the environment variables you need, especially:
 
-## 4. Basic App
-```python
-from fastapi import FastAPI
+- `DATABASE_URL` — defaults to `postgresql+psycopg_async://postgres:postgres@db/maindb`
+- `SECRET_KEY` — used for JWT signing
 
-app = FastAPI()
+## Project Structure
 
-@app.get("/")
-def root():
-    return {"message": "Hello World"}
-```
-
-Run:
-```bash
-uv run uvicorn main:app --reload
-```
-
----
-
-## 5. HTTP Methods (CRUD Examples)
-
-### GET (Read)
-```python
-@app.get("/items")
-def get_items():
-    return ["item1", "item2"]
-
-@app.get("/items/{item_id}")
-def get_item(item_id: int):
-    return {"item_id": item_id}
-```
-
-### POST (Create)
-```python
-from pydantic import BaseModel
-
-class Item(BaseModel):
-    name: str
-    price: float
-
-@app.post("/items")
-def create_item(item: Item):
-    return {"created": item}
-```
-
-### PUT (Update full)
-```python
-@app.put("/items/{item_id}")
-def update_item(item_id: int, item: Item):
-    return {"updated_id": item_id, "data": item}
-```
-
-### PATCH (Partial update)
-```python
-@app.patch("/items/{item_id}")
-def partial_update(item_id: int, item: dict):
-    return {"patched": item_id, "data": item}
-```
-
-### DELETE
-```python
-@app.delete("/items/{item_id}")
-def delete_item(item_id: int):
-    return {"deleted": item_id}
-```
-
----
-
-## 6. Query Parameters
-```python
-@app.get("/search")
-def search(q: str, limit: int = 10):
-    return {"query": q, "limit": limit}
-```
-
----
-
-## 7. Path vs Query
-- **Path** → required (`/items/1`)
-- **Query** → optional (`/items?limit=10`)
-
----
-
-## 8. Request Body Validation
-```python
-class User(BaseModel):
-    name: str
-    age: int
-
-@app.post("/users")
-def create_user(user: User):
-    return user
-```
-
----
-
-## 9. Response Model
-```python
-@app.get("/user", response_model=User)
-def get_user():
-    return {"name": "John", "age": 25}
-```
-
----
-
-## 10. Dependency Injection (Depends)
-```python
-from fastapi import Depends
-
-def common_params():
-    return {"limit": 10}
-
-@app.get("/products")
-def get_products(params: dict = Depends(common_params)):
-    return params
-```
-
----
-
-## 11. Headers & Annotated
-```python
-from typing import Annotated
-from fastapi import Header
-
-@app.get("/header")
-def get_header(token: Annotated[str, Header()]):
-    return {"token": token}
-```
-
----
-
-## 12. Status Codes
-```python
-from fastapi import status
-
-@app.post("/create", status_code=status.HTTP_201_CREATED)
-def create():
-    return {"message": "created"}
-```
-
----
-
-## 13. Error Handling
-```python
-from fastapi import HTTPException
-
-@app.get("/error")
-def error():
-    raise HTTPException(status_code=404, detail="Not Found")
-```
-
----
-
-## 14. Async vs Sync
-```python
-import asyncio
-
-@app.get("/async")
-async def async_route():
-    await asyncio.sleep(1)
-    return {"msg": "async"}
-```
-
-```python
-import time
-
-@app.get("/sync")
-def sync_route():
-    time.sleep(1)
-    return {"msg": "sync"}
-```
-
----
-
-## 15. Middleware Example
-```python
-@app.middleware("http")
-async def log_requests(request, call_next):
-    response = await call_next(request)
-    return response
-```
-
----
-
-## 16. Project Structure
-```
-fastapi-project/
+```text
+.
 ├── main.py
 ├── routers/
+│   ├── game_router.py
+│   ├── hero_router.py
+│   ├── team_router.py
+│   └── user_router.py
 ├── models/
 ├── schemas/
+├── dependencies/
 ├── services/
-└── dependencies/
+├── utils/
+├── templates/
+├── static/
+├── Dockerfile
+├── docker-compose.yml
+├── pyproject.toml
+└── uv.lock
 ```
 
----
+## Notes
 
-## 17. Common Mistakes
-- Using blocking code in async
-- Not validating input
-- Poor project structure
-- Ignoring `response_model`
-
----
-
-## 18. Next Steps
-- Database integration
-- JWT Authentication
-- Background tasks
-- Docker deployment
+- The app auto-creates database tables on startup.
+- Game progress is stored server-side, while timer/highscore helpers use browser storage.
+- Hard levels expose shuffle only for unmatched cards, so completed pairs stay locked in place.
