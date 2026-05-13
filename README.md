@@ -140,3 +140,23 @@ Make sure PostgreSQL is available and set the environment variables you need, es
 - The app auto-creates database tables on startup.
 - Game progress is stored server-side, while timer/highscore helpers use browser storage.
 - Hard levels expose shuffle only for unmatched cards, so completed pairs stay locked in place.
+
+# Screen shots
+
+### 1. Login Page
+![alt text](image.png)
+
+### 2. Signup Page
+![alt text](image-6.png)
+
+### 3. Levels Page
+![alt text](image-2.png)
+
+### 4. About Page
+![alt text](image-3.png)
+
+### 5. Game Page
+![alt text](image-4.png)
+
+### 6. Profile Page
+![alt text](image-5.png)
